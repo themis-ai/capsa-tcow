@@ -225,8 +225,16 @@ class MyTrainPipeline(torch.nn.Module):
             raise RuntimeError(f'seeker_query_mask all zero?')
 
         # Run seeker to recover hierarchical masks over time.
-        (output_mask, output_flags) = self.networks['seeker'](
+        (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'].wrapped_forward(
             seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+
+        # print("output_mask: ",output_mask)
+        # print("output_flags: ",output_flags)
+        # print("output_mask_risk: ",output_mask_risk)
+        # print("output_flags_risk: ",output_flags_risk)
+
+
+
 
         # Organize & return relevant info.
         # Ensure that everything is on a CUDA device.
@@ -236,6 +244,9 @@ class MyTrainPipeline(torch.nn.Module):
         model_retval['target_mask'] = target_mask.to(self.device)  # (B, 3, T, Hf, Wf).
         model_retval['output_mask'] = output_mask.to(self.device)  # (B, 3, T, Hf, Wf).
         model_retval['output_flags'] = output_flags.to(self.device)  # (B, T, 3).
+        
+        model_retval['output_flags_risk'] = output_flags_risk.to(self.device)
+        model_retval['output_mask_risk'] = output_mask.to(self.device)
 
         return model_retval
 

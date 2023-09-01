@@ -15,6 +15,11 @@ import my_utils
 import seeker
 import pipeline
 
+from einops import rearrange, reduce, repeat
+import torch
+from torch._dynamo import allow_in_graph
+allow_in_graph(rearrange)
+from capsa_torch import sample,vote,sculpt
 
 def load_networks(checkpoint_path, device, logger, epoch=-1):
     '''
@@ -46,10 +51,14 @@ def load_networks(checkpoint_path, device, logger, epoch=-1):
 
     model_args = {'seeker': seeker_args}
 
+    wrapper = sample.Wrapper(symbolic_trace=False)
+    # wrapper = vote.Wrapper(symbolic_trace=False)
+
     # Instantiate networks.
-    seeker_net = seeker.Seeker(logger, **seeker_args)
+    seeker_net = seeker.Seeker(logger,wrapper=wrapper, **seeker_args)
     seeker_net = seeker_net.to(device)
-    seeker_net.load_state_dict(checkpoint['net_seeker'])
+    seeker_net.load_state_dict(checkpoint['net_seeker'],strict=True)
+    seeker_net.wrap()
     networks = {'seeker': seeker_net}
     epoch = checkpoint['epoch']
     print_fn('=> Loaded epoch (1-based): ' + str(epoch + 1))

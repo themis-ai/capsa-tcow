@@ -20,6 +20,7 @@ import torch
 from torch._dynamo import allow_in_graph
 allow_in_graph(rearrange)
 from capsa_torch import sample,vote,sculpt
+from capsa_torch.sample.distribution import Bernoulli
 
 def load_networks(checkpoint_path, device, logger, epoch=-1):
     '''
@@ -51,7 +52,7 @@ def load_networks(checkpoint_path, device, logger, epoch=-1):
 
     model_args = {'seeker': seeker_args}
 
-    wrapper = sample.Wrapper(symbolic_trace=False)
+    wrapper = sample.Wrapper(symbolic_trace=False,distribution=Bernoulli(0.1))
     # wrapper = vote.Wrapper(symbolic_trace=False)
 
     # Instantiate networks.

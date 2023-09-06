@@ -228,12 +228,6 @@ class MyTrainPipeline(torch.nn.Module):
         (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'].wrapped_forward(
             seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
 
-        # print("output_mask: ",output_mask)
-        # print("output_flags: ",output_flags)
-        # print("output_mask_risk: ",output_mask_risk)
-        # print("output_flags_risk: ",output_flags_risk)
-
-
 
 
         # Organize & return relevant info.

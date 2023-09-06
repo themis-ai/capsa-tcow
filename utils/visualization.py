@@ -251,3 +251,23 @@ def create_model_input_target_video(
 
     video = np.clip(vis, 0.0, 1.0)
     return video
+
+def create_model_output_risk_video(seeker_rgb,output_mask_risk,target_index):
+    
+    seeker_rgb = seeker_rgb.copy()
+    seeker_gray = seeker_rgb[..., 0] * 0.2 + seeker_rgb[..., 1] * 0.6 + seeker_rgb[..., 2] * 0.2
+    seeker_rgb[..., 0] = seeker_gray
+    seeker_rgb[..., 1] = seeker_gray
+    seeker_rgb[..., 2] = seeker_gray
+
+    vis = np.zeros_like(seeker_rgb)
+
+    x_0_norm = (output_mask_risk[target_index]-np.min(output_mask_risk[target_index]))/(np.max(output_mask_risk[target_index])-np.min(output_mask_risk[target_index]))
+
+    vis[..., 0] += x_0_norm
+    vis[..., 1] += x_0_norm
+    vis[..., 2] += x_0_norm 
+
+    video = np.clip(vis, 0.0, 1.0)
+
+    return video

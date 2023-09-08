@@ -17,6 +17,12 @@ import my_utils
 import pipeline
 import seeker
 
+from einops import rearrange, reduce, repeat
+import torch
+from torch._dynamo import allow_in_graph
+allow_in_graph(rearrange)
+from capsa_torch import sample,vote,sculpt
+
 
 def _get_learning_rate(optimizer):
     if isinstance(optimizer, dict):
@@ -77,11 +83,14 @@ def _train_one_epoch(args, train_pipeline, networks_nodp, phase, epoch, optimize
         except Exception as e:
 
             num_exceptions += 1
-            if num_exceptions >= 20:
+            if num_exceptions >= 3:
                 raise e
             else:
+                train_pipeline[0].to(device)
                 logger.exception(e)
                 continue
+        
+        if epoch == -1: return
 
         # Perform backpropagation to update model parameters.
         if phase == 'train':
@@ -180,6 +189,15 @@ def main(args, logger):
     logger.info('Initializing model...')
     start_time = time.time()
 
+    if args.wrapper == "sample":
+        wrapper = sample.Wrapper(symbolic_trace=args.symbolic_trace,n_samples=args.n_samples,distribution=sample.Bernoulli(args.distribution),trainable=args.trainable,verbose=args.verbose)
+    elif args.wrapper == "vote":
+        wrapper = vote.Wrapper(symbolic_trace=args.symbolic_trace,finetune=args.finetune,n_voters=args.n_voters,alpha=args.alpha,use_bias=args.use_bias,verbose=args.verbose,independent=args.independent)
+    elif args.wrapper == "sculpt":
+        wrapper = sculpt.Wrapper(symbolic_trace=args.symbolic_trace,n_layers=args.n_layers,verbose=args.verbose)
+    else:
+        wrapper = None
+
     # Instantiate networks.
     networks = dict()
 
@@ -203,7 +221,7 @@ def main(args, logger):
     seeker_args['query_channels'] = 1
     seeker_args['output_channels'] = 3  # Target/snitch + frontmost occluder + outermost container.
     seeker_args['flag_channels'] = 3  # (occluded, contained, percentage).
-    seeker_net = seeker.Seeker(logger, **seeker_args)
+    seeker_net = seeker.Seeker(logger,wrapper,args.wrapper, **seeker_args)
 
     networks['seeker'] = seeker_net
 
@@ -236,14 +254,23 @@ def main(args, logger):
     milestones = [(args.num_epochs * 2) // 5,
                   (args.num_epochs * 3) // 5,
                   (args.num_epochs * 4) // 5]
-    for (k, v) in networks.items():
-        if len(list(v.parameters())) != 0:
-            optimizers[k] = optimizer_class(v.parameters(), lr=args.learn_rate)
-            lr_schedulers[k] = torch.optim.lr_scheduler.MultiStepLR(
-                optimizers[k], milestones, gamma=args.lr_decay)
+
+    # Instantiate datasets.
+    logger.info('Initializing data loaders...')
+    start_time = time.time()
+    (train_loader, val_aug_loader, val_noaug_loader, dset_args) = \
+        data.create_train_val_data_loaders(args, logger)
+    logger.info(f'Took {time.time() - start_time:.3f}s')
+
+    if args.wrapper=="none":
+        for (k, v) in networks.items():
+            if len(list(v.parameters())) != 0:
+                optimizers[k] = optimizer_class(v.parameters(), lr=args.learn_rate)
+                lr_schedulers[k] = torch.optim.lr_scheduler.MultiStepLR(
+                    optimizers[k], milestones, gamma=args.lr_decay)
 
     # Load weights from checkpoint if specified.
-    if args.resume:
+    if args.resume and args.wrapper=="none":
         logger.info('Loading weights from: ' + args.resume)
         checkpoint = torch.load(args.resume, map_location='cpu')
         for (k, v) in networks_nodp.items():
@@ -255,15 +282,32 @@ def main(args, logger):
         start_epoch = checkpoint['epoch'] + 1
     else:
         start_epoch = 0
+        networks['seeker'].wrap()
+
+    if args.wrapper!="none":
+        _train_one_epoch(
+                args, (train_pipeline, train_pipeline_nodp), networks_nodp, 'train', -1, optimizers,
+                lr_schedulers, train_loader, device, logger)
+        
+        if args.resume:
+            for (k, v) in networks.items():
+                logger.info('Loading weights from: ' + args.resume)
+            checkpoint = torch.load(args.resume, map_location='cpu')
+            for (k, v) in networks_nodp.items():
+                v.load_state_dict(checkpoint['net_' + k])
+            for (k, v) in optimizers.items():
+                v.load_state_dict(checkpoint['optim_' + k])
+            for (k, v) in lr_schedulers.items():
+                v.load_state_dict(checkpoint['lr_sched_' + k])
+            start_epoch = checkpoint['epoch'] + 1
+
+        if len(list(v.parameters())) != 0:
+            optimizers[k] = optimizer_class(v.parameters(), lr=args.learn_rate)
+            lr_schedulers[k] = torch.optim.lr_scheduler.MultiStepLR(
+                optimizers[k], milestones, gamma=args.lr_decay)
 
     logger.info(f'Took {time.time() - start_time:.3f}s')
 
-    # Instantiate datasets.
-    logger.info('Initializing data loaders...')
-    start_time = time.time()
-    (train_loader, val_aug_loader, val_noaug_loader, dset_args) = \
-        data.create_train_val_data_loaders(args, logger)
-    logger.info(f'Took {time.time() - start_time:.3f}s')
 
     # Define logic for how to store checkpoints.
     def save_model_checkpoint(epoch):

@@ -141,7 +141,7 @@ class MyLogger(logvisgen.Logger):
         # (Qs, 3, T, H, W).
         target_mask = model_retval['target_mask'][0].detach().cpu().numpy()
         # (Qs, 3, T, H, W).
-        output_mask_risk = model_retval['output_mask_risk'][0].detach().cpu().numpy()
+        #output_mask_risk = model_retval['output_mask_risk'][0].detach().cpu().numpy()
         # (Qs, 3, T, H, W).
         if 'snitch_weights' in model_retval:
             snitch_weights = model_retval['snitch_weights'][0].detach().cpu().numpy()
@@ -220,9 +220,9 @@ class MyLogger(logvisgen.Logger):
                     seeker_rgb, seeker_query_mask[q, 0], target_mask[q], query_border,
                     snitch_border, frontmost_border, outermost_border, grayscale=False)
                 
-            vis_risk_0 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],0)
-            vis_risk_1 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],1)
-            vis_risk_2 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],2)
+            # vis_risk_0 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],0)
+            # vis_risk_1 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],1)
+            # vis_risk_2 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],2)
 
             vis_extra = []
             if ('test' in phase and test_args.extra_visuals) or \

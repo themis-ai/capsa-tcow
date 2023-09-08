@@ -261,11 +261,12 @@ class KubricQueryDataset(torch.utils.data.Dataset):
             segm_fp = os.path.join(frames_dp, f'segmentation_{t:05d}.png')
             if not os.path.exists(rgb_fp):
                 break
-
+            image = PIL.Image.open(depth_fp)
             rgb = plt.imread(rgb_fp)[..., 0:3]  # (H, W, 3) floats.
-            depth = np.array(PIL.Image.open(depth_fp))  # (H, W) floats.
+            depth = np.array(image)  # (H, W) floats.
             depth = depth[..., None]  # (H, W, 1).
             segm = plt.imread(segm_fp)[..., 0:3]  # (H, W, 3) floats.
+            image.close()
 
             pv_rgb.append(rgb)
             pv_depth.append(depth)

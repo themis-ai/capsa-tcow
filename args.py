@@ -93,6 +93,46 @@ def shared_args(parser):
     parser.add_argument('--wandb_group', default='group', type=str,
                         help='Group to put this experiment in on weights and biases.')
 
+    # Capsa  options
+    parser.add_argument('--wrapper', default="none", type=str,
+                        help='Capsa wrapper to use for the model. Options: none, vote, sculpt, sample')
+    
+    parser.add_argument('--symbolic_trace', default=False, type=_str2bool,
+                        help='')
+    parser.add_argument('--verbose', default=0, type=int,
+                        help='')
+
+    # Capsa sample wrapper options
+    parser.add_argument('--n_samples', default=5, type=int,
+                        help='')
+    parser.add_argument('--distribution', default=0.1, type=float,
+                        help='')    
+    parser.add_argument('--trainable', default=False, type=_str2bool,
+                        help='')
+
+    # Capsa vote wrapper options
+    parser.add_argument('--n_voters', default=3, type=int,
+                        help='')
+    parser.add_argument('--alpha', default=1, type=int,
+                        help='')    
+    parser.add_argument('--use_bias', default=True, type=_str2bool,
+                        help='')
+    parser.add_argument('--independent', default=True, type=_str2bool,
+                        help='')    
+    parser.add_argument('--finetune', default=False, type=_str2bool,
+                        help='')
+    
+    # Capsa sculpt wrapper options
+    parser.add_argument('--n_layers', default=3, type=int,
+                        help='')
+
+
+    
+    
+
+    
+
+
 
 def train_args():
 
@@ -265,6 +305,8 @@ def verify_args(args, is_train=False):
     
     args.wandb_group = ('train' if is_train else 'test') + \
                        ('_debug' if args.is_debug else '')
+    
+    assert args.wrapper in ["none", "vote", "sculpt", "sample"]
 
     if is_train:
 

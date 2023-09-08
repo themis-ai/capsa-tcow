@@ -130,6 +130,7 @@ class MyTrainPipeline(torch.nn.Module):
         all_full_occl_cont_id = []
         all_target_mask = []
         all_output_mask = []
+        all_output_mask_risk = []
 
         for q in range(Qs):
 
@@ -153,9 +154,14 @@ class MyTrainPipeline(torch.nn.Module):
                 raise RuntimeError(
                     f'target_mask all zero? q: {q} query_idx: {query_idx} qt_idx: {qt_idx}')
 
-            # Run seeker to recover hierarchical masks over time.
-            (output_mask, output_flags) = self.networks['seeker'](
-                seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+            if 'train' in self.phase:
+                # Run seeker to recover hierarchical masks over time.
+                (output_mask, output_flags) = self.networks['seeker'](
+                    seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+            else:
+                # Run seeker to recover hierarchical masks over time.
+                (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'](
+                    seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
 
             # Save some ground truth metadata, e.g. weighted query desirability, to get a feel for
             # this example or dataset.
@@ -172,6 +178,7 @@ class MyTrainPipeline(torch.nn.Module):
             all_full_occl_cont_id.append(full_occl_cont_id)  # (B, T, 2).
             all_target_mask.append(target_mask)  # (B, 3, T, Hf, Wf).
             all_output_mask.append(output_mask)  # (B, 1/3, T, Hf, Wf).
+            if self.train_args.wrapper != 'none' and 'train' not in self.phase: all_output_mask_risk.append(output_mask_risk)  # (B, 1/3, T, Hf, Wf).
 
         sel_occl_fracs = torch.stack(all_occl_fracs, dim=1)  # (B, Qs, T, 3).
         sel_desirability = torch.stack(all_desirability, dim=1)  # (B, Qs).
@@ -180,6 +187,7 @@ class MyTrainPipeline(torch.nn.Module):
         full_occl_cont_id = torch.stack(all_full_occl_cont_id, dim=1)  # (B, Qs, T, 2).
         target_mask = torch.stack(all_target_mask, dim=1)  # (B, Qs, 3, T, Hf, Wf).
         output_mask = torch.stack(all_output_mask, dim=1)  # (B, Qs, 1/3, T, Hf, Wf).
+        if self.train_args.wrapper != 'none' and 'train' not in self.phase: output_mask_risk = torch.stack(all_output_mask_risk, dim=1)  # (B, Qs, 1/3, T, Hf, Wf).
 
         # Organize & return relevant info.
         # Ensure that everything is on a CUDA device.
@@ -196,6 +204,7 @@ class MyTrainPipeline(torch.nn.Module):
         # (B, Qs, 1, T, Hf, Wf).
         model_retval['target_mask'] = target_mask.to(self.device)  # (B, Qs, 3, T, Hf, Wf).
         model_retval['output_mask'] = output_mask.to(self.device)  # (B, Qs, 1/3, T, Hf, Wf).
+        if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_mask_risk'] = output_mask_risk.to(self.device)  # (B, Qs, 1/3, T, Hf, Wf).
 
         return model_retval
 
@@ -224,9 +233,14 @@ class MyTrainPipeline(torch.nn.Module):
         if not seeker_query_mask.any():
             raise RuntimeError(f'seeker_query_mask all zero?')
 
-        # Run seeker to recover hierarchical masks over time.
-        (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'].wrapped_forward(
-            seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+        if 'train' in self.phase:
+            # Run seeker to recover hierarchical masks over time.
+            (output_mask, output_flags) = self.networks['seeker'](
+                seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+        else:
+            # Run seeker to recover hierarchical masks over time.
+            (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'](
+                seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
 
 
 
@@ -239,8 +253,8 @@ class MyTrainPipeline(torch.nn.Module):
         model_retval['output_mask'] = output_mask.to(self.device)  # (B, 3, T, Hf, Wf).
         model_retval['output_flags'] = output_flags.to(self.device)  # (B, T, 3).
         
-        model_retval['output_flags_risk'] = output_flags_risk.to(self.device)
-        model_retval['output_mask_risk'] = output_mask.to(self.device)
+        if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_flags_risk'] = output_flags_risk.to(self.device)
+        if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_mask_risk'] = output_mask.to(self.device)
 
         return model_retval
 

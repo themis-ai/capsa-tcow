@@ -84,13 +84,13 @@ def _train_one_epoch(args, train_pipeline, networks_nodp, phase, epoch, optimize
 
             num_exceptions += 1
             if num_exceptions >= 3:
+                logger.exception(e)
                 raise e
             else:
                 train_pipeline[0].to(device)
-                logger.exception(e)
                 continue
         
-        if epoch == -1: return
+        if epoch == -1: break
 
         # Perform backpropagation to update model parameters.
         if phase == 'train':
@@ -114,7 +114,7 @@ def _train_one_epoch(args, train_pipeline, networks_nodp, phase, epoch, optimize
             logger.warning('Cutting epoch short for debugging...')
             break
 
-    if phase == 'train':
+    if phase == 'train' and epoch != -1:
         for (k, v) in lr_schedulers.items():
             v.step()
 
@@ -270,7 +270,7 @@ def main(args, logger):
                     optimizers[k], milestones, gamma=args.lr_decay)
 
     # Load weights from checkpoint if specified.
-    if args.resume and args.wrapper=="none":
+    if (args.resume and args.wrapper=="none") or ("tcow" in args.resume and args.wrapper == "vote" and args.finetune == True):
         logger.info('Loading weights from: ' + args.resume)
         checkpoint = torch.load(args.resume, map_location='cpu')
         for (k, v) in networks_nodp.items():
@@ -280,6 +280,7 @@ def main(args, logger):
         for (k, v) in lr_schedulers.items():
             v.load_state_dict(checkpoint['lr_sched_' + k])
         start_epoch = checkpoint['epoch'] + 1
+        networks['seeker'].wrap()
     else:
         start_epoch = 0
         networks['seeker'].wrap()
@@ -288,8 +289,9 @@ def main(args, logger):
         _train_one_epoch(
                 args, (train_pipeline, train_pipeline_nodp), networks_nodp, 'train', -1, optimizers,
                 lr_schedulers, train_loader, device, logger)
-        
-        if args.resume:
+
+
+        if args.resume and not ("tcow" in args.resume  and args.wrapper == "vote" and args.finetune == True):
             for (k, v) in networks.items():
                 logger.info('Loading weights from: ' + args.resume)
             checkpoint = torch.load(args.resume, map_location='cpu')

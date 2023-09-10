@@ -34,17 +34,17 @@ class Seeker(torch.nn.Module):
     def wrap(self):
         self.wrapped_seeker = self.wrapper(self.seeker) if self.wrapper != None else None
 
-    def forward(self, *args):
-        return self.seeker(*args)
+    def forward(self,phase, seeker_input, seeker_query_mask):
+        return self.seeker(seeker_input, seeker_query_mask)
 
-    def sculpt_forward(self, *args):
-        return self.wrapped_seeker(*args,return_risk=False)
+    def sculpt_forward(self,phase, seeker_input, seeker_query_mask):
+        return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=False)
 
-    def vote_forward(self, *args):
-        return self.wrapped_seeker(*args,return_risk=False,tile_and_reduce=False)
+    def vote_forward(self,phase, seeker_input, seeker_query_mask):
+        return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=False,tile_and_reduce=False) if phase == "train" else self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=True)
 
-    def sample_forward(self, *args):
-        return self.wrapped_seeker(*args,return_risk=False)
+    def sample_forward(self,phase, seeker_input, seeker_query_mask):
+        return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=False) if phase == 'train' else self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=True)
 
 
 

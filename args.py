@@ -96,7 +96,6 @@ def shared_args(parser):
     # Capsa  options
     parser.add_argument('--wrapper', default="none", type=str,
                         help='Capsa wrapper to use for the model. Options: none, vote, sculpt, sample')
-    
     parser.add_argument('--symbolic_trace', default=False, type=_str2bool,
                         help='')
     parser.add_argument('--verbose', default=0, type=int,

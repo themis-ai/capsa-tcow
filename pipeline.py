@@ -154,14 +154,14 @@ class MyTrainPipeline(torch.nn.Module):
                 raise RuntimeError(
                     f'target_mask all zero? q: {q} query_idx: {query_idx} qt_idx: {qt_idx}')
 
-            if 'train' in self.phase:
+            if 'train' in self.phase or 'none' in self.train_args.wrapper:
                 # Run seeker to recover hierarchical masks over time.
                 (output_mask, output_flags) = self.networks['seeker'](
-                    seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+                    seeker_input=seeker_input, seeker_query_mask=seeker_query_mask,phase=self.phase)  # (B, 3, T, Hf, Wf), (B, T, 3).
             else:
                 # Run seeker to recover hierarchical masks over time.
                 (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'](
-                    seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+                    seeker_input=seeker_input, seeker_query_mask=seeker_query_mask,phase=self.phase)  # (B, 3, T, Hf, Wf), (B, T, 3).
 
             # Save some ground truth metadata, e.g. weighted query desirability, to get a feel for
             # this example or dataset.

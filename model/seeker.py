@@ -13,6 +13,8 @@ from __init__ import *
 # Internal imports.
 import mask_tracker
 
+from capsa_torch.sculpt.distribution import Normal
+
 
 class Seeker(torch.nn.Module):
 
@@ -24,6 +26,7 @@ class Seeker(torch.nn.Module):
         self.wrapper_arg = wrapper_arg
 
         if self.wrapper_arg == 'sculpt':
+            self.distribution = Normal()
             self.forward = self.sculpt_forward
         elif self.wrapper_arg == 'vote':
             self.forward = self.vote_forward
@@ -38,7 +41,11 @@ class Seeker(torch.nn.Module):
         return self.seeker(seeker_input, seeker_query_mask)
 
     def sculpt_forward(self,phase, seeker_input, seeker_query_mask):
-        return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=False)
+        if phase == "train":
+            risk_output = self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=True)
+            return self.distribution.sample(risk_output)
+        else:
+            return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=True)
 
     def vote_forward(self,phase, seeker_input, seeker_query_mask):
         return self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=False,tile_and_reduce=False) if phase == "train" else self.wrapped_seeker(seeker_input, seeker_query_mask,return_risk=True)

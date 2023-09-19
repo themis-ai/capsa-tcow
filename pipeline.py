@@ -233,14 +233,14 @@ class MyTrainPipeline(torch.nn.Module):
         if not seeker_query_mask.any():
             raise RuntimeError(f'seeker_query_mask all zero?')
 
-        if 'train' in self.phase:
+        if 'train' in self.phase or 'none' in self.train_args.wrapper:
             # Run seeker to recover hierarchical masks over time.
             (output_mask, output_flags) = self.networks['seeker'](
-                seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+                seeker_input=seeker_input, seeker_query_mask=seeker_query_mask,phase=self.phase)  # (B, 3, T, Hf, Wf), (B, T, 3).
         else:
             # Run seeker to recover hierarchical masks over time.
             (output_mask, output_flags),(output_mask_risk, output_flags_risk) = self.networks['seeker'](
-                seeker_input, seeker_query_mask)  # (B, 3, T, Hf, Wf), (B, T, 3).
+                seeker_input=seeker_input, seeker_query_mask=seeker_query_mask,phase=self.phase)  # (B, 3, T, Hf, Wf), (B, T, 3).
 
 
 

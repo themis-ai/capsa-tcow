@@ -47,19 +47,31 @@ def load_networks(checkpoint_path, device, logger, epoch=-1):
     train_args = checkpoint['train_args']
     train_dset_args = checkpoint['dset_args']
 
+
     # Get network instance parameters.
     seeker_args = checkpoint['seeker_args']
 
     model_args = {'seeker': seeker_args}
 
-    wrapper = sample.Wrapper(symbolic_trace=False,distribution=Bernoulli(0.1))
-    # wrapper = vote.Wrapper(symbolic_trace=False)
+    if train_args.wrapper == "sample":
+        wrapper = sample.Wrapper(symbolic_trace=train_args.symbolic_trace,n_samples=train_args.n_samples,distribution=sample.Bernoulli(train_args.distribution),trainable=train_args.trainable,verbose=train_args.verbose)
+    elif train_args.wrapper == "vote":
+        wrapper = vote.Wrapper(symbolic_trace=train_args.symbolic_trace,finetune=train_args.finetune,n_voters=train_args.n_voters,alpha=train_args.alpha,use_bias=train_args.use_bias,verbose=train_args.verbose,independent=train_args.independent)
+    elif train_args.wrapper == "sculpt":
+        wrapper = sculpt.Wrapper(symbolic_trace=train_args.symbolic_trace,n_layers=train_args.n_layers,verbose=train_args.verbose)
+    else:
+        wrapper = None
+
 
     # Instantiate networks.
-    seeker_net = seeker.Seeker(logger,wrapper=wrapper, **seeker_args)
+    seeker_net = seeker.Seeker(logger,wrapper=wrapper,wrapper_arg=train_args.wrapper, **seeker_args)
     seeker_net = seeker_net.to(device)
-    seeker_net.load_state_dict(checkpoint['net_seeker'],strict=True)
-    seeker_net.wrap()
+    if train_args.wrapper == "none": 
+        seeker_net.load_state_dict(checkpoint['net_seeker'],strict=True)
+    else:
+        seeker_net.wrap()
+        model_args['dict'] = checkpoint['net_seeker']
+
     networks = {'seeker': seeker_net}
     epoch = checkpoint['epoch']
     print_fn('=> Loaded epoch (1-based): ' + str(epoch + 1))
@@ -88,6 +100,9 @@ def perform_inference(data_retval, networks, device, logger, all_args, cur_step)
     (model_retval, loss_retval) = my_pipeline(
         data_retval, cur_step, cur_step, 0, 1.0, include_loss, metrics_only)
     logger.debug(f'(perform_inference) my_pipeline: {time.time() - temp_st:.3f}s')
+    
+    #TODO: (ege) We should not constantly load the state_dict
+    my_pipeline.networks["seeker"].load_state_dict(all_args["model"]["dict"])
 
     # Calculate various evaluation metrics.
     loss_retval = my_pipeline.process_entire_batch(

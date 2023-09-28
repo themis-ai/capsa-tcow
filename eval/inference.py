@@ -22,7 +22,7 @@ allow_in_graph(rearrange)
 from capsa_torch import sample,vote,sculpt
 from capsa_torch.sample.distribution import Bernoulli
 
-def load_networks(checkpoint_path, device, logger, epoch=-1):
+def load_networks(test_args, device, logger, epoch=-1):
     '''
     :param checkpoint_path (str): Path to model checkpoint folder or file.
     :param epoch (int): If >= 0, desired checkpoint epoch to load.
@@ -35,13 +35,16 @@ def load_networks(checkpoint_path, device, logger, epoch=-1):
     '''
     print_fn = logger.info if logger is not None else print
 
+    checkpoint_path = test_args.resume
     assert os.path.exists(checkpoint_path)
     if os.path.isdir(checkpoint_path):
         model_fn = f'model_{epoch}.pth' if epoch >= 0 else 'checkpoint.pth'
         checkpoint_path = os.path.join(checkpoint_path, model_fn)
+    
 
     print_fn('Loading weights from: ' + checkpoint_path)
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
+
 
     # Load all arguments for later use.
     train_args = checkpoint['train_args']
@@ -53,24 +56,26 @@ def load_networks(checkpoint_path, device, logger, epoch=-1):
 
     model_args = {'seeker': seeker_args}
 
-    if train_args.wrapper == "sample":
+    
+    if test_args.wrapper == "sample":
         wrapper = sample.Wrapper(symbolic_trace=train_args.symbolic_trace,n_samples=train_args.n_samples,distribution=sample.Bernoulli(train_args.distribution),trainable=train_args.trainable,verbose=train_args.verbose)
-    elif train_args.wrapper == "vote":
+    elif test_args.wrapper == "vote":
         wrapper = vote.Wrapper(symbolic_trace=train_args.symbolic_trace,finetune=train_args.finetune,n_voters=train_args.n_voters,alpha=train_args.alpha,use_bias=train_args.use_bias,verbose=train_args.verbose,independent=train_args.independent)
-    elif train_args.wrapper == "sculpt":
+    elif test_args.wrapper == "sculpt":
         wrapper = sculpt.Wrapper(symbolic_trace=train_args.symbolic_trace,n_layers=train_args.n_layers,verbose=train_args.verbose)
     else:
         wrapper = None
 
 
     # Instantiate networks.
-    seeker_net = seeker.Seeker(logger,wrapper=wrapper,wrapper_arg=train_args.wrapper, **seeker_args)
+    seeker_net = seeker.Seeker(logger,wrapper=wrapper,wrapper_arg=test_args.wrapper, **seeker_args)
     seeker_net = seeker_net.to(device)
-    if train_args.wrapper == "none": 
+    if test_args.wrapper == "none": 
         seeker_net.load_state_dict(checkpoint['net_seeker'],strict=True)
     else:
         seeker_net.wrap()
-        model_args['dict'] = checkpoint['net_seeker']
+        seeker_net.load_state_dict(checkpoint['net_seeker'])
+
 
     networks = {'seeker': seeker_net}
     epoch = checkpoint['epoch']
@@ -96,13 +101,12 @@ def perform_inference(data_retval, networks, device, logger, all_args, cur_step)
     include_loss = True
     metrics_only = (data_retval['source_name'][0] == 'plugin')
 
+
     temp_st = time.time()
     (model_retval, loss_retval) = my_pipeline(
         data_retval, cur_step, cur_step, 0, 1.0, include_loss, metrics_only)
     logger.debug(f'(perform_inference) my_pipeline: {time.time() - temp_st:.3f}s')
     
-    #TODO: (ege) We should not constantly load the state_dict
-    my_pipeline.networks["seeker"].load_state_dict(all_args["model"]["dict"])
 
     # Calculate various evaluation metrics.
     loss_retval = my_pipeline.process_entire_batch(

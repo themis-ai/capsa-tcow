@@ -18,6 +18,9 @@ import pipeline
 import seeker
 
 from einops import rearrange, reduce, repeat
+from torch._dynamo import allow_in_graph
+allow_in_graph(rearrange)
+
 import torch
 from capsa_torch import sample,vote,sculpt
 
@@ -220,6 +223,7 @@ def main(args, logger):
     seeker_args['output_channels'] = 3  # Target/snitch + frontmost occluder + outermost container.
     seeker_args['flag_channels'] = 3  # (occluded, contained, percentage).
     seeker_net = seeker.Seeker(logger,wrapper,args.wrapper, **seeker_args)
+    if args.wrapper != None: seeker_net.wrap()
 
     networks['seeker'] = seeker_net
 
@@ -260,51 +264,26 @@ def main(args, logger):
         data.create_train_val_data_loaders(args, logger)
     logger.info(f'Took {time.time() - start_time:.3f}s')
 
-    if args.wrapper=="none":
-        for (k, v) in networks.items():
-            if len(list(v.parameters())) != 0:
-                optimizers[k] = optimizer_class(v.parameters(), lr=args.learn_rate)
-                lr_schedulers[k] = torch.optim.lr_scheduler.MultiStepLR(
-                    optimizers[k], milestones, gamma=args.lr_decay)
-
-    # Load weights from checkpoint if specified.
-    if (args.resume and args.wrapper=="none") or ("tcow" in args.resume and args.wrapper == "vote" and args.finetune == True):
-        logger.info('Loading weights from: ' + args.resume)
-        checkpoint = torch.load(args.resume, map_location='cpu')
-        for (k, v) in networks_nodp.items():
-            v.load_state_dict(checkpoint['net_' + k])
-        for (k, v) in optimizers.items():
-            v.load_state_dict(checkpoint['optim_' + k])
-        for (k, v) in lr_schedulers.items():
-            v.load_state_dict(checkpoint['lr_sched_' + k])
-        start_epoch = checkpoint['epoch'] + 1
-        networks['seeker'].wrap()
-    else:
-        start_epoch = 0
-        networks['seeker'].wrap()
-
-    if args.wrapper!="none":
-        _train_one_epoch(
-                args, (train_pipeline, train_pipeline_nodp), networks_nodp, 'train', -1, optimizers,
-                lr_schedulers, train_loader, device, logger)
-
-
-        if args.resume and not ("tcow" in args.resume  and args.wrapper == "vote" and args.finetune == True):
-            for (k, v) in networks.items():
-                logger.info('Loading weights from: ' + args.resume)
-            checkpoint = torch.load(args.resume, map_location='cpu')
-            for (k, v) in networks_nodp.items():
-                v.load_state_dict(checkpoint['net_' + k])
-            for (k, v) in optimizers.items():
-                v.load_state_dict(checkpoint['optim_' + k])
-            for (k, v) in lr_schedulers.items():
-                v.load_state_dict(checkpoint['lr_sched_' + k])
-            start_epoch = checkpoint['epoch'] + 1
-
+    for (k, v) in networks.items():
         if len(list(v.parameters())) != 0:
             optimizers[k] = optimizer_class(v.parameters(), lr=args.learn_rate)
             lr_schedulers[k] = torch.optim.lr_scheduler.MultiStepLR(
                 optimizers[k], milestones, gamma=args.lr_decay)
+
+    # Load weights from checkpoint if specified.
+    if args.resume:
+        logger.info('Loading weights from: ' + args.resume)
+        checkpoint = torch.load(args.resume, map_location='cpu')
+        for (k, v) in networks_nodp.items():
+            v.load_state_dict(checkpoint['net_' + k],strict=False)
+        for (k, v) in optimizers.items():
+            v.load_state_dict(checkpoint['optim_' + k],strict=False)
+        for (k, v) in lr_schedulers.items():
+            v.load_state_dict(checkpoint['lr_sched_' + k],strict=False)
+        start_epoch = checkpoint['epoch'] + 1
+    else:
+        start_epoch = 0
+        
 
     logger.info(f'Took {time.time() - start_time:.3f}s')
 

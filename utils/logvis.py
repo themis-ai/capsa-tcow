@@ -141,7 +141,7 @@ class MyLogger(logvisgen.Logger):
         # (Qs, 3, T, H, W).
         target_mask = model_retval['target_mask'][0].detach().cpu().numpy()
         # (Qs, 3, T, H, W).
-        if train_args.wrapper != "none": output_mask_risk = model_retval['output_mask_risk'][0].detach().cpu().numpy()
+        if train_args.wrapper != "none" or phase != "train": output_mask_risk = model_retval['output_mask_risk'][0].detach().cpu().numpy()
         # (Qs, 3, T, H, W).
         if 'snitch_weights' in model_retval:
             snitch_weights = model_retval['snitch_weights'][0].detach().cpu().numpy()
@@ -153,7 +153,7 @@ class MyLogger(logvisgen.Logger):
             # Add fake query count dimension (Qs = 1).
             seeker_query_mask = seeker_query_mask[None]  # Add fake query count dimension (Qs = 1).
             output_mask = output_mask[None]
-            if train_args.wrapper != "none": output_mask_risk = output_mask_risk[None]
+            if train_args.wrapper != "none" or phase != "train": output_mask_risk = output_mask_risk[None]
             target_mask = target_mask[None]  # Add fake query count dimension (Qs = 1).
 
             # We want to slow down plugin videos according to how much we are subsampling them
@@ -220,7 +220,7 @@ class MyLogger(logvisgen.Logger):
                     seeker_rgb, seeker_query_mask[q, 0], target_mask[q], query_border,
                     snitch_border, frontmost_border, outermost_border, grayscale=False)
                 
-            if train_args.wrapper != "none":
+            if train_args.wrapper != "none" or phase != "train" :
                 vis_risk_0 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],0)
                 vis_risk_1 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],1)
                 vis_risk_2 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],2)
@@ -238,7 +238,7 @@ class MyLogger(logvisgen.Logger):
                 # Include temporally concatenated & spatially horizontally concatenated versions of
                 # (input) + (output + target) or (input + target) + (output + target).
                 vis_allout_pause = np.concatenate([vis_allout[0:1]] * 3 + [vis_allout[1:]], axis=0)
-                if train_args.wrapper != "none":
+                if train_args.wrapper != "none" or train_args.wrapper != "none":
                     vis_risk_pause_0 = np.concatenate([vis_risk_0[0:1]] * 3 + [vis_risk_0[1:]], axis=0)
                     vis_risk_pause_1 = np.concatenate([vis_risk_1[0:1]] * 3 + [vis_risk_1[1:]], axis=0)
                     vis_risk_pause_2 = np.concatenate([vis_risk_2[0:1]] * 3 + [vis_risk_2[1:]], axis=0)
@@ -247,7 +247,7 @@ class MyLogger(logvisgen.Logger):
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout], axis=0))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_input, vis_allout_pause], axis=2))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout_pause], axis=2))  # (T, H, W, 3).
-                if train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause_0,vis_risk_pause_1,vis_risk_pause_2], axis=2))  # (T, H, W, 3).
+                if train_args.wrapper != "none" train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause_0,vis_risk_pause_1,vis_risk_pause_2], axis=2))  # (T, H, W, 3).
 
             file_name_suffix_q = file_name_suffix + f'_q{q}'
             # Easily distinguish all-zero outputs.

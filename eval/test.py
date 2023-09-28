@@ -186,7 +186,7 @@ def main(test_args, logger):
     else:
         device = torch.device(test_args.device)
     (networks, train_args, train_dset_args, model_args, epoch) = \
-        inference.load_networks(test_args.resume, device, logger, epoch=test_args.epoch)
+        inference.load_networks(test_args, device, logger, epoch=test_args.epoch)
 
     logger.info(f'Took {time.time() - start_time:.3f}s')
 

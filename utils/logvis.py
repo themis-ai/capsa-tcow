@@ -247,7 +247,7 @@ class MyLogger(logvisgen.Logger):
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout], axis=0))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_input, vis_allout_pause], axis=2))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout_pause], axis=2))  # (T, H, W, 3).
-                if train_args.wrapper != "none" train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause_0,vis_risk_pause_1,vis_risk_pause_2], axis=2))  # (T, H, W, 3).
+                if train_args.wrapper != "none" and train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause_0,vis_risk_pause_1,vis_risk_pause_2], axis=2))  # (T, H, W, 3).
 
             file_name_suffix_q = file_name_suffix + f'_q{q}'
             # Easily distinguish all-zero outputs.

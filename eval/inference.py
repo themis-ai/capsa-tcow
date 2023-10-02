@@ -15,11 +15,7 @@ import my_utils
 import seeker
 import pipeline
 
-from einops import rearrange, reduce, repeat
 import torch
-from torch._dynamo import allow_in_graph
-allow_in_graph(rearrange)
-from capsa_torch import sample,vote,sculpt
 from capsa_torch.sample.distribution import Bernoulli
 
 def load_networks(test_args, device, logger, epoch=-1):

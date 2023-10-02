@@ -48,6 +48,8 @@ def load_networks(test_args, device, logger, epoch=-1):
 
     # Load all arguments for later use.
     train_args = checkpoint['train_args']
+    #if train_args have attribute
+    if not hasattr(train_args,'wrapper') and hasattr(test_args,'wrapper'): train_args.wrapper = test_args.wrapper 
     train_dset_args = checkpoint['dset_args']
 
 
@@ -58,11 +60,11 @@ def load_networks(test_args, device, logger, epoch=-1):
 
     
     if test_args.wrapper == "sample":
-        wrapper = sample.Wrapper(symbolic_trace=train_args.symbolic_trace,n_samples=train_args.n_samples,distribution=sample.Bernoulli(train_args.distribution),trainable=train_args.trainable,verbose=train_args.verbose)
+        wrapper = sample.Wrapper(symbolic_trace=test_args.symbolic_trace,n_samples=test_args.n_samples,distribution=sample.Bernoulli(test_args.distribution),trainable=test_args.trainable,verbose=test_args.verbose)
     elif test_args.wrapper == "vote":
-        wrapper = vote.Wrapper(symbolic_trace=train_args.symbolic_trace,finetune=train_args.finetune,n_voters=train_args.n_voters,alpha=train_args.alpha,use_bias=train_args.use_bias,verbose=train_args.verbose,independent=train_args.independent)
+        wrapper = vote.Wrapper(symbolic_trace=test_args.symbolic_trace,finetune=test_args.finetune,n_voters=test_args.n_voters,alpha=test_args.alpha,use_bias=test_args.use_bias,verbose=test_args.verbose,independent=test_args.independent)
     elif test_args.wrapper == "sculpt":
-        wrapper = sculpt.Wrapper(symbolic_trace=train_args.symbolic_trace,n_layers=train_args.n_layers,verbose=train_args.verbose)
+        wrapper = sculpt.Wrapper(symbolic_trace=test_args.symbolic_trace,n_layers=test_args.n_layers,verbose=test_args.verbose)
     else:
         wrapper = None
 
@@ -74,7 +76,7 @@ def load_networks(test_args, device, logger, epoch=-1):
         seeker_net.load_state_dict(checkpoint['net_seeker'],strict=True)
     else:
         seeker_net.wrap()
-        seeker_net.load_state_dict(checkpoint['net_seeker'])
+        seeker_net.load_state_dict(checkpoint['net_seeker'],strict=False)
 
 
     networks = {'seeker': seeker_net}

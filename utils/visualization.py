@@ -10,6 +10,15 @@ sys.path.insert(0, os.getcwd())
 
 from __init__ import *
 
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from io import BytesIO
+from PIL import Image
+
+from math import floor
+
+
 
 def draw_text(image, topleft, label, color, size_mult=1.0):
     '''
@@ -253,21 +262,45 @@ def create_model_input_target_video(
     return video
 
 def create_model_output_risk_video(seeker_rgb,output_mask_risk,target_index):
+
+    colormap = cm.magma
+    normalize = mcolors.Normalize(vmin=np.min(output_mask_risk), vmax=np.max(output_mask_risk))
+    s_map = cm.ScalarMappable(norm=normalize, cmap=colormap)
+
+    output_mask_risk = np.concatenate((output_mask_risk[0],output_mask_risk[1],output_mask_risk[2]),axis=-1)
+
+    mapped = s_map.get_cmap()(output_mask_risk)[...,:3]
+    img_bar = get_cbar(mapped,s_map.get_clim()[0],s_map.get_clim()[1],s_map=s_map)
+
+    img_bar = np.repeat(img_bar[np.newaxis,...]/255.,output_mask_risk.shape[-3],axis=0)
+    final_img = np.append(mapped,img_bar,axis=-2)
+
+    return final_img
+
+
+def get_cbar(img, min_val, max_val, s_map):
+    fig, ax = plt.subplots(figsize=(15,15))
+
+    img_cmap = ax.imshow(img[0,...], cmap=s_map.cmap, vmin=min_val, vmax=max_val)
+    plt.axis('off')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.)
+
+    num_ticks = 5
+    ticks = np.linspace(min_val, max_val, num_ticks)
+
+    cbar = plt.colorbar(mappable=s_map, cax=cax, orientation='vertical', ticks=ticks)
+    cbar.ax.set_yticklabels(["{:4.2f}".format(val) for val in ticks])
     
-    seeker_rgb = seeker_rgb.copy()
-    seeker_gray = seeker_rgb[..., 0] * 0.2 + seeker_rgb[..., 1] * 0.6 + seeker_rgb[..., 2] * 0.2
-    seeker_rgb[..., 0] = seeker_gray
-    seeker_rgb[..., 1] = seeker_gray
-    seeker_rgb[..., 2] = seeker_gray
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches = 'tight', pad_inches = 0)
+    buf.seek(0)
 
-    vis = np.zeros_like(seeker_rgb)
+    img_bar = Image.open(buf)  # Opens the image in the buffer
+    img_bar = np.array(img_bar.resize((floor(1731*(240/383)),240)))[:,-85:-1,:3]  # Convert the image to a NumPy array
 
-    x_0_norm = (output_mask_risk[target_index]-np.min(output_mask_risk[target_index]))/(np.max(output_mask_risk[target_index])-np.min(output_mask_risk[target_index]))
 
-    vis[..., 0] += x_0_norm
-    vis[..., 1] += x_0_norm
-    vis[..., 2] += x_0_norm 
+    plt.close(fig)    
+    buf.close()
 
-    video = np.clip(vis, 0.0, 1.0)
-
-    return video
+    return img_bar

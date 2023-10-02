@@ -254,7 +254,7 @@ class MyTrainPipeline(torch.nn.Module):
         model_retval['output_flags'] = output_flags.to(self.device)  # (B, T, 3).
         
         if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_flags_risk'] = output_flags_risk.to(self.device)
-        if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_mask_risk'] = output_mask.to(self.device)
+        if self.train_args.wrapper != 'none' and 'train' not in self.phase: model_retval['output_mask_risk'] = output_mask_risk.to(self.device)
 
         return model_retval
 

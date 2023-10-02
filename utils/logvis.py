@@ -221,9 +221,7 @@ class MyLogger(logvisgen.Logger):
                     snitch_border, frontmost_border, outermost_border, grayscale=False)
                 
             if train_args.wrapper != "none" or phase != "train" :
-                vis_risk_0 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],0)
-                vis_risk_1 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],1)
-                vis_risk_2 = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],2)
+                vis_risk = visualization.create_model_output_risk_video(seeker_rgb,output_mask_risk[q],0)
 
             vis_extra = []
             if ('test' in phase and test_args.extra_visuals) or \
@@ -239,15 +237,13 @@ class MyLogger(logvisgen.Logger):
                 # (input) + (output + target) or (input + target) + (output + target).
                 vis_allout_pause = np.concatenate([vis_allout[0:1]] * 3 + [vis_allout[1:]], axis=0)
                 if train_args.wrapper != "none" or train_args.wrapper != "none":
-                    vis_risk_pause_0 = np.concatenate([vis_risk_0[0:1]] * 3 + [vis_risk_0[1:]], axis=0)
-                    vis_risk_pause_1 = np.concatenate([vis_risk_1[0:1]] * 3 + [vis_risk_1[1:]], axis=0)
-                    vis_risk_pause_2 = np.concatenate([vis_risk_2[0:1]] * 3 + [vis_risk_2[1:]], axis=0)
+                    vis_risk_pause = np.concatenate([vis_risk[0:1]] * 3 + [vis_risk[1:]], axis=0)
                 vis_intgt_pause = np.concatenate([vis_intgt[0:1]] * 3 + [vis_intgt[1:]], axis=0)
                 vis_extra.append(np.concatenate([vis_input, vis_allout], axis=0))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout], axis=0))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_input, vis_allout_pause], axis=2))  # (T, H, W, 3).
                 vis_extra.append(np.concatenate([vis_intgt_pause, vis_allout_pause], axis=2))  # (T, H, W, 3).
-                if train_args.wrapper != "none" and train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause_0,vis_risk_pause_1,vis_risk_pause_2], axis=2))  # (T, H, W, 3).
+                if train_args.wrapper != "none": vis_extra.append(np.concatenate([vis_allout_pause, vis_risk_pause], axis=2))  # (T, H, W, 3).
 
             file_name_suffix_q = file_name_suffix + f'_q{q}'
             # Easily distinguish all-zero outputs.

@@ -17,9 +17,6 @@ import my_utils
 import pipeline
 import seeker
 
-from einops import rearrange, reduce, repeat
-from torch._dynamo import allow_in_graph
-allow_in_graph(rearrange)
 
 import torch
 from capsa_torch import sample,vote,sculpt
